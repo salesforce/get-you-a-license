@@ -40,6 +40,7 @@ import play.api.libs.json.Reads._
 import play.api.libs.json._
 import play.api.libs.ws.{WSClient, WSRequest, WSResponse}
 import play.api.routing.sird.QueryStringParameterExtractor
+import play.api.libs.concurrent.Futures
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -49,7 +50,7 @@ import GitHub._
 
 import scala.concurrent.duration.FiniteDuration
 
-class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: ExecutionContext) {
+class GitHub(configuration: Configuration, ws: WSClient, futures: Futures)(implicit ec: ExecutionContext) {
 
   lazy val clientId: String = configuration.get[String]("github.oauth.client-id")
   lazy val clientSecret: String = configuration.get[String]("github.oauth.client-secret")
@@ -160,6 +161,10 @@ class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: Executio
 
   def getCommits(ownerRepo: OwnerRepoBase, accessToken: String): Future[JsArray] = {
     ws(s"repos/${ownerRepo.owner}/${ownerRepo.repo}/commits", accessToken).get().flatMap(okT[JsArray])
+  }
+
+  def getAllGitRefs(ownerRepo: OwnerRepoBase, accessToken: String): Future[JsArray] = {
+    ws(s"repos/${ownerRepo.owner}/${ownerRepo.repo}/git/refs", accessToken).get().flatMap(okT[JsArray])
   }
 
   def getFile(ownerRepo: OwnerRepoBase, path: String, accessToken: String): Future[JsObject] = {
@@ -333,7 +338,7 @@ class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: Executio
       branchOrFork <- repoCreateBranchOrFork(ownerRepo, accessToken)
 
       // sometimes it takes time for the fork to be ready so wait until the repo is ready
-      _ <- waitFor(getCommits(ownerRepo, accessToken), 1.second, 10)
+      _ <- waitFor(getAllGitRefs(ownerRepo, accessToken), 1.second, 10)
 
       _ <- createOrUpdateFile(branchOrFork, "LICENSE", licenseText, s"Add $licenseName", accessToken)
 
@@ -346,7 +351,7 @@ class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: Executio
 
     if (currentPoll < maxPolls) {
       block.recoverWith {
-        case _ => waitFor(block, pollInterval, maxPolls, currentPoll)
+        case _ => futures.delayed(pollInterval)(waitFor(block, pollInterval, maxPolls, currentPoll))
       }
     }
     else {

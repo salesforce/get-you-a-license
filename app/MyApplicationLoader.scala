@@ -33,6 +33,7 @@ import filters.OnlyHttpsFilter
 import org.webjars.play.{RequireJS, WebJarAssets, WebJarsUtil}
 import play.api.{Application, ApplicationLoader, BuiltInComponentsFromContext}
 import play.api.ApplicationLoader.Context
+import play.api.libs.concurrent.{DefaultFutures, Futures}
 import play.api.libs.ws.ahc.AhcWSComponents
 import play.api.mvc.EssentialFilter
 import play.api.routing.Router
@@ -53,7 +54,9 @@ class MyComponents(context: Context) extends BuiltInComponentsFromContext(contex
     super.httpFilters.filterNot(_.isInstanceOf[CSRFFilter]) :+ new OnlyHttpsFilter(environment)
   }
 
-  lazy val gitHub = new GitHub(context.initialConfiguration, wsClient)
+  lazy val futures = new DefaultFutures(actorSystem)
+
+  lazy val gitHub = new GitHub(context.initialConfiguration, wsClient, futures)
   lazy val main = new Main(gitHub, controllerComponents)
 
   lazy val webJarsUtil = new WebJarsUtil(context.initialConfiguration, context.environment)
