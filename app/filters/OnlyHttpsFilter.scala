@@ -28,16 +28,25 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package controllers
+package filters
 
-import org.scalatestplus.play._
+import akka.stream.Materializer
+import play.api.{Environment, Mode}
+import play.api.http.HeaderNames
+import play.api.mvc.{Filter, RequestHeader, Result, Results}
 
-class ControllerSpec extends PlaySpec {
+import scala.concurrent.{ExecutionContext, Future}
 
-  "Controller" should {
-    "do something" in {
-      cancel()
+class OnlyHttpsFilter(environment: Environment)(implicit val mat: Materializer, ec: ExecutionContext) extends Filter {
+  def apply(nextFilter: (RequestHeader) => Future[Result])(requestHeader: RequestHeader): Future[Result] = {
+    nextFilter(requestHeader).map { result =>
+      if (requestHeader.secure || environment.mode == Mode.Dev) {
+        result
+      }
+      else {
+        Results.MovedPermanently("https://" + requestHeader.host + requestHeader.uri)
+      }
     }
   }
-
 }
+

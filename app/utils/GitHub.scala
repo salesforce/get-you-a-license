@@ -31,6 +31,7 @@
 package utils
 
 import java.net.URL
+import java.util.concurrent.TimeoutException
 
 import org.apache.commons.codec.binary.Base64
 import play.api.Configuration
@@ -41,9 +42,12 @@ import play.api.libs.ws.{WSClient, WSRequest, WSResponse}
 import play.api.routing.sird.QueryStringParameterExtractor
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
 import scala.language.implicitConversions
 import scala.util.Try
 import GitHub._
+
+import scala.concurrent.duration.FiniteDuration
 
 class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: ExecutionContext) {
 
@@ -154,7 +158,22 @@ class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: Executio
     }
   }
 
-  def createFile(ownerRepo: OwnerRepoBase, path: String, contents: String, commitMessage: String, accessToken: String): Future[JsObject] = {
+  def getCommits(ownerRepo: OwnerRepoBase, accessToken: String): Future[JsArray] = {
+    ws(s"repos/${ownerRepo.owner}/${ownerRepo.repo}/commits", accessToken).get().flatMap(okT[JsArray])
+  }
+
+  def getFile(ownerRepo: OwnerRepoBase, path: String, accessToken: String): Future[JsObject] = {
+    val baseWs = ws(s"repos/${ownerRepo.ownerRepo}/contents/$path", accessToken)
+
+    val wsMaybeBranch = ownerRepo match {
+      case OwnerRepoBranch(_, _, branch) => baseWs.withQueryStringParameters("ref" -> branch)
+      case _ => baseWs
+    }
+
+    wsMaybeBranch.get().flatMap(okT[JsObject])
+  }
+
+  def createOrUpdateFile(ownerRepo: OwnerRepoBase, path: String, contents: String, commitMessage: String, accessToken: String): Future[JsObject] = {
     val json = Json.obj(
       "path" -> path,
       "message" -> commitMessage,
@@ -166,35 +185,62 @@ class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: Executio
       case OwnerRepoBranch(_, _, branch) => json + ("branch" -> JsString(branch))
     }
 
-    ws(s"repos/${ownerRepo.ownerRepo}/contents/$path", accessToken).put(jsonWithMaybeBranch).flatMap(createdT[JsObject])
+    val jsonWithMaybeBranchAndMaybeShaFuture = getFile(ownerRepo, path, accessToken).map { file =>
+      val sha = (file \ "sha").as[String]
+      jsonWithMaybeBranch + ("sha" -> JsString(sha))
+    } recover {
+      case _: Exception => jsonWithMaybeBranch
+    }
+
+    jsonWithMaybeBranchAndMaybeShaFuture.flatMap { jsonWithMaybeBranchAndMaybeSha =>
+      ws(s"repos/${ownerRepo.ownerRepo}/contents/$path", accessToken).put(jsonWithMaybeBranchAndMaybeSha).flatMap { response =>
+        createdT[JsObject](response).recoverWith {
+          case _: Exception => okT[JsObject](response)
+        }
+      }
+    }
   }
 
-  def createPullRequest(head: OwnerRepoBase, base: OwnerRepoBase, title: String, accessToken: String): Future[JsObject] = {
+  def getPullRequests(head: OwnerRepoBranch, base: OwnerRepoBranch, state: String, accessToken: String): Future[JsArray] = {
+    ws(s"repos/${base.ownerRepo}/pulls", accessToken)
+      .withQueryStringParameters(
+        "state" -> state,
+        "head" -> s"${head.owner}/${head.repo}:${head.branch}",
+        "base" -> base.branch
+      )
+      .get()
+      .flatMap(okT[JsArray])
+  }
+
+  def createOrGetPullRequest(head: OwnerRepoBase, base: OwnerRepoBase, title: String, accessToken: String): Future[JsObject] = {
 
     val headBranchFuture = head match {
-      case _: OwnerRepo => defaultBranch(head, accessToken)
-      case OwnerRepoBranch(_, _, branch) => Future.successful(branch)
+      case _: OwnerRepo => defaultBranch(head, accessToken).map(OwnerRepoBranch(head.owner, head.repo, _))
+      case orb: OwnerRepoBranch => Future.successful(orb)
     }
 
     val baseBranchFuture = base match {
-      case _: OwnerRepo => defaultBranch(base, accessToken)
-      case OwnerRepoBranch(_, _, branch) => Future.successful(branch)
+      case _: OwnerRepo => defaultBranch(base, accessToken).map(OwnerRepoBranch(base.owner, base.repo, _))
+      case orb: OwnerRepoBranch => Future.successful(orb)
     }
 
-    val jsonFuture = for {
-      headBranch <- headBranchFuture
-      baseBranch <- baseBranchFuture
-    } yield {
+    def json(head: OwnerRepoBranch, base: OwnerRepoBranch): JsObject = {
       Json.obj(
         "title" -> title,
-        "head" -> s"${head.owner}:$headBranch",
-        "base" -> baseBranch
+        "head" -> s"${head.owner}:${head.branch}",
+        "base" -> base.branch
       )
     }
 
-    jsonFuture.flatMap { json =>
-      ws(s"repos/${base.ownerRepo}/pulls", accessToken).post(json).flatMap(createdT[JsObject])
-    }
+    for {
+      headBranch <- headBranchFuture
+      baseBranch <- baseBranchFuture
+      pullRequests <- getPullRequests(headBranch, baseBranch, "open", accessToken)
+      pullRequest <- pullRequests.value.headOption.flatMap(_.asOpt[JsObject]).fold {
+        // create a pull request
+        ws(s"repos/${base.ownerRepo}/pulls", accessToken).post(json(headBranch, baseBranch)).flatMap(createdT[JsObject])
+      } (Future.successful)
+    } yield pullRequest
   }
 
   def repoBranches(ownerRepo: OwnerRepoBase, accessToken: String): Future[Set[String]] = {
@@ -238,9 +284,9 @@ class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: Executio
     ws(s"repos/${base.ownerRepo}/forks", accessToken).execute(HttpVerbs.POST).flatMap(statusT[JsObject](Status.ACCEPTED, _))
   }
 
-  private def replaceTemplateParams(template: String, params: Map[String, String]): String = {
+  def replaceTemplateParams(template: String, params: Map[String, String]): String = {
     params.foldLeft(template) { case (currentTemplate, (key, value)) =>
-      currentTemplate.replaceAll(key, value)
+      currentTemplate.replaceAllLiterally(s"[$key]", value)
     }
   }
 
@@ -262,7 +308,7 @@ class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: Executio
             } getOrElse 0
 
             val branchName = patchPrefix + patchNum
-            repoCreateBranch(base, branchName, accessToken).map { branchInfo =>
+            repoCreateBranch(base, branchName, accessToken).map { _ =>
               OwnerRepoBranch(base.owner, base.repo, branchName)
             }
           }
@@ -286,11 +332,26 @@ class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: Executio
 
       branchOrFork <- repoCreateBranchOrFork(ownerRepo, accessToken)
 
-      createFile <- createFile(branchOrFork, "LICENSE", licenseText, s"Add $licenseName", accessToken)
+      // sometimes it takes time for the fork to be ready so wait until the repo is ready
+      _ <- waitFor(getCommits(ownerRepo, accessToken), 1.second, 10)
 
-      createPullRequest <- createPullRequest(branchOrFork, ownerRepo, "Add License", accessToken)
+      _ <- createOrUpdateFile(branchOrFork, "LICENSE", licenseText, s"Add $licenseName", accessToken)
 
-    } yield createPullRequest
+      pullRequest <- createOrGetPullRequest(branchOrFork, ownerRepo, "Add License", accessToken)
+    } yield pullRequest
+  }
+
+  private def waitFor[T](block: => Future[T], pollInterval: FiniteDuration, maxPolls: Int, pollNumber: Int = 0): Future[T] = {
+    val currentPoll = pollNumber + 1
+
+    if (currentPoll < maxPolls) {
+      block.recoverWith {
+        case _ => waitFor(block, pollInterval, maxPolls, currentPoll)
+      }
+    }
+    else {
+      Future.failed(new TimeoutException("Max polls reached"))
+    }
   }
 
   private def ok(response: WSResponse): Future[Unit] = status(Status.OK, response)
@@ -321,14 +382,6 @@ class GitHub (configuration: Configuration, ws: WSClient) (implicit ec: Executio
       val messageTry = Try((response.json \ "message").as[String])
       Future.failed(GitHub.IncorrectResponseStatus(statusCode, response.status, messageTry.getOrElse(response.body)))
     }
-  }
-
-  private def seqFutures[T, U](items: TraversableOnce[T])(f: T => Future[U]): Future[List[U]] = {
-    items.foldLeft(Future.successful[List[U]](Nil)) {
-      (futures, item) => futures.flatMap { values =>
-        f(item).map(_ :: values)
-      }
-    } map (_.reverse)
   }
 
 }

@@ -2,12 +2,18 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-GET     /                           controllers.Main.index
+GET     /                                  controllers.Main.index
 
-GET     /_github_oauth_callback     controllers.Main.gitHubOauthCallback(code: String, state: String)
+GET     /favicon.ico                       controllers.Assets.at(path="/public", file="lib/salesforce-ux__design-system/assets/icons/utility/like_60.png")
 
-GET     /:org                       controllers.Main.gitHubOrg(org: String, accessToken: String)
+GET     /_github_oauth_callback            controllers.Main.gitHubOauthCallback(code: String, state: String)
 
-POST    /license_pull_request       controllers.Main.licensePullRequest(org: String, repo: String, license: String, accessToken: String)
+GET     /license_params                    controllers.Main.licenseParams(key: String)
 
-GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
+POST    /license_pull_request              controllers.Main.licensePullRequest
+
+GET     /assets/*file                      controllers.Assets.versioned(path="/public", file: Asset)
+
+->      /webjars                           webjars.Routes
+
+GET     /:org                              controllers.Main.gitHubOrg(org: String)

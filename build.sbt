@@ -8,6 +8,8 @@ scalaVersion := "2.12.3"
 
 libraryDependencies ++= Seq(
   ws,
+  "org.webjars" %% "webjars-play" % "2.6.1",
+  "org.webjars.npm" % "salesforce-ux__design-system" % "2.3.1",
   "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.1" % Test
 )
 

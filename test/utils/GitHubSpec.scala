@@ -109,7 +109,7 @@ class GitHubSpec extends PlaySpec with BeforeAndAfterAll {
   }
 
   "GitHub.licenseParams" should {
-    "work" in {
+    "work with mit" in {
       val params = await(gitHub.licenseParams("mit", gitHubTestToken))
       params must equal (Set("year", "fullname"))
     }
@@ -168,9 +168,20 @@ class GitHubSpec extends PlaySpec with BeforeAndAfterAll {
     "not create a new pull request with an invalid license" in {
       an [Exception] should be thrownBy await(gitHub.createLicensePullRequest(gitHubTestOrgRepo, "foo", Map.empty[String, String], gitHubTestToken))
     }
+    "create a pull request to an external repo" in {
+      val pullRequest = await(gitHub.createLicensePullRequest(OwnerRepo("jamesward", "asdf"), "apache-2.0", Map.empty[String, String], gitHubTestToken))
+      (pullRequest \ "state").as[String] must equal ("open")
+    }
+    "work again" in {
+      val pullRequest = await(gitHub.createLicensePullRequest(OwnerRepo("jamesward", "asdf"), "unlicense", Map.empty[String, String], gitHubTestToken))
+      (pullRequest \ "state").as[String] must equal ("open")
+    }
   }
 
+  // todo: test waitFor
+
   override def afterAll {
+    // todo: reset GitHub state
     wsClient.close()
     Await.result(actorSystem.terminate(), 1.minute)
   }

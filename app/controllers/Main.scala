@@ -30,17 +30,108 @@
 
 package controllers
 
+import akka.util.ByteString
+import play.api.Configuration
+import play.api.http.HttpEntity
+import play.api.libs.json.{JsObject, Json, JsonValidationError, Reads, __}
+import play.api.libs.functional.syntax._
 import play.api.mvc._
+import utils.GitHub
+import utils.GitHub.{OwnerRepo, OwnerRepoBase, parseOwnerRepo}
+
+import scala.concurrent.{ExecutionContext, Future}
 
 
-class Main(cc: ControllerComponents) extends AbstractController(cc) {
+class Main(gitHub: GitHub, cc: ControllerComponents) (implicit ec: ExecutionContext) extends AbstractController(cc) {
 
-  def index = TODO
+  private val ACCESS_TOKEN = "access_token"
+  private val gitHubScopes = Set("public_repo")
 
-  def gitHubOauthCallback(code: String, state: String) = TODO
+  def index = Action { request =>
+    Ok(views.html.index(gitHubAuthUrl, gitHub.clientId, redirectUri(request), gitHubScopes))
+  }
 
-  def gitHubOrg(org: String, accessToken: String) = TODO
+  def gitHubOauthCallback(code: String, state: String) = Action.async {
+    gitHub.accessToken(code).map { accessToken =>
+      Redirect(routes.Main.gitHubOrg(state)).flashing(ACCESS_TOKEN -> accessToken)
+    } recover {
+      case e: Exception => InternalServerError(e.getMessage)
+    }
+  }
 
-  def licensePullRequest(org: String, repo: String, license: String, accessToken: String) = TODO
+  def gitHubOrg(org: String) = Action.async { request =>
+    request.flash.get(ACCESS_TOKEN).fold {
+      val params = Map(
+        "client_id" -> gitHub.clientId,
+        "redirect_uri" -> redirectUri(request),
+        "scope" -> gitHubScopes.mkString(","),
+        "state" -> org
+      ).mapValues(Seq(_))
 
+      Future.successful(Redirect(gitHubAuthUrl, params))
+    } { accessToken =>
+      gitHub.licenses(accessToken).flatMap { licensesJson =>
+        val licenses = licensesJson.value.map { licenseJson =>
+          (licenseJson \ "key").as[String] -> (licenseJson \ "name").as[String]
+        }.toMap
+
+        gitHub.orgOrUserRepos(org, accessToken).map(_.as[Seq[Repo]]).map { repos =>
+          val noForks = repos.filterNot(_.fork)
+          Ok(views.html.org(org, noForks, licenses, accessToken))
+        }
+      }
+    }
+  }
+
+  def licensePullRequest = Action.async(parse.json) { request =>
+    request.headers.get("X-GITHUB-TOKEN").fold {
+      Future.successful(Unauthorized("GitHub Access Token Not Set"))
+    } { accessToken =>
+      val orgRepo = (request.body \ "orgRepo").as[String]
+      val licenseKey = (request.body \ "licenseKey").as[String]
+
+      gitHub.licenseParams(licenseKey, accessToken).flatMap { paramNames =>
+        val templateParams = paramNames.foldLeft(Map.empty[String, String]) { case (params, paramName) =>
+          val paramValue = (request.body \ paramName).as[String]
+          params + (paramName -> paramValue)
+        }
+
+        gitHub.createLicensePullRequest(OwnerRepo(orgRepo), licenseKey, templateParams, accessToken).map { pullRequest =>
+          Ok(pullRequest)
+        }
+      }
+    }
+  }
+
+  def licenseParams(key: String) = Action.async { request =>
+    request.headers.get("X-GITHUB-TOKEN").fold {
+      Future.successful(Unauthorized("GitHub Access Token Not Set"))
+    } { accessToken =>
+      gitHub.licenseParams(key, accessToken).map { params =>
+        Ok(Json.toJson(params))
+      }
+    }
+  }
+
+  private val gitHubAuthUrl: String = "https://gitHub.com/login/oauth/authorize"
+
+  private def redirectUri(implicit request: RequestHeader): String = {
+    routes.Main.gitHubOauthCallback("", "").absoluteURL(request.secure).stripSuffix("?code=&state=")
+  }
+
+}
+
+case class Repo(name: String, fullName: String, fork: Boolean, maybeLicense: Option[String])
+
+object Repo {
+
+  implicit val jsReads: Reads[Repo] = (
+    (__ \ "name").read[String] ~
+    (__ \ "full_name").read[String] ~
+    (__ \ "fork").read[Boolean] ~
+    (__ \ "license").readNullable[JsObject].collect(JsonValidationError("Could not parse license")) {
+      case Some(license) => (license \ "name").asOpt[String]
+      case _ => None
+    }
+  )(Repo.apply _)
 }

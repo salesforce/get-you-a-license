@@ -28,10 +28,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import play.api._
+import controllers.{AssetsComponents, Main}
+import filters.OnlyHttpsFilter
+import org.webjars.play.{RequireJS, WebJarAssets, WebJarsUtil}
+import play.api.{Application, ApplicationLoader, BuiltInComponentsFromContext}
 import play.api.ApplicationLoader.Context
+import play.api.libs.ws.ahc.AhcWSComponents
+import play.api.mvc.EssentialFilter
 import play.api.routing.Router
 import play.filters.HttpFiltersComponents
+import play.filters.csrf.CSRFFilter
+import router.Routes
+import utils.GitHub
 
 class MyApplicationLoader extends ApplicationLoader {
   def load(context: Context): Application = {
@@ -39,6 +47,19 @@ class MyApplicationLoader extends ApplicationLoader {
   }
 }
 
-class MyComponents(context: Context) extends BuiltInComponentsFromContext(context) with HttpFiltersComponents {
-  lazy val router: Router = Router.empty
+class MyComponents(context: Context) extends BuiltInComponentsFromContext(context) with AhcWSComponents with AssetsComponents with HttpFiltersComponents {
+
+  override def httpFilters: Seq[EssentialFilter] = {
+    super.httpFilters.filterNot(_.isInstanceOf[CSRFFilter]) :+ new OnlyHttpsFilter(environment)
+  }
+
+  lazy val gitHub = new GitHub(context.initialConfiguration, wsClient)
+  lazy val main = new Main(gitHub, controllerComponents)
+
+  lazy val webJarsUtil = new WebJarsUtil(context.initialConfiguration, context.environment)
+  lazy val requireJs = new RequireJS(webJarsUtil)
+  lazy val webJarAssets = new WebJarAssets(httpErrorHandler, assetsMetadata)
+  lazy val webJarsRoutes = new webjars.Routes(httpErrorHandler, requireJs, webJarAssets)
+
+  lazy val router: Router = new Routes(httpErrorHandler, main, assets, webJarsRoutes)
 }

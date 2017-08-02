@@ -28,21 +28,48 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *@
 
-@(authUrl: String, clientId: String, redirectUri: String, scopes: Set[String])
+@(org: String, repos: Seq[controllers.Repo], licenses: Map[String, String], accessToken: String)
 
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <title>Get You a License</title>
+        @*
+        <link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/main.css")">
+        <link rel="shortcut icon" type="image/png" href="@routes.Assets.versioned("images/favicon.png")">
+        <script src="@routes.Assets.versioned("javascripts/hello.js")" type="text/javascript"></script>
+            *@
+
+        <script src="@routes.Assets.versioned("javascripts/index.js")" type="application/javascript"></script>
     </head>
-    <body>
-        <form action="@authUrl" method="get">
-            <input type="hidden" name="client_id" value="@clientId">
-            <input type="hidden" name="redirect_uri" value="@redirectUri">
-            <input type="hidden" name="scope" value="@scopes.mkString(",")">
-            <label>GitHub Org or User:</label>
-            <input name="state">
-            <input type="submit" name="Go!">
-        </form>
+    <body data-github-token="@accessToken">
+        <p>
+            Org:  <a href="https://github.com/@org">@org</a>
+        </p>
+
+        <div id="licenseInputs">
+            <span>Get You a License:</span>
+            <select id="license">
+                <option value="" label=" " disabled selected></option>
+                @for((licenseKey, licenseName) <- licenses) {
+                    <option value="@licenseKey">@licenseName</option>
+                }
+            </select>
+        </div>
+
+        <ul>
+            @for(repo <- repos) {
+                <li>
+                    <a href="https://github.com/@repo.fullName">@repo.name</a> - @repo.maybeLicense match {
+                        case Some(license) => {
+                            @license
+                        }
+                        case None => {
+                            None <button name="sendLicensePr" value="@repo.fullName" disabled>Send License PR</button>
+                        }
+                    }
+                </li>
+            }
+        </ul>
     </body>
 </html>
