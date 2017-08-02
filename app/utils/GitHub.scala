@@ -338,7 +338,8 @@ class GitHub(configuration: Configuration, ws: WSClient, futures: Futures)(impli
       branchOrFork <- repoCreateBranchOrFork(ownerRepo, accessToken)
 
       // sometimes it takes time for the fork to be ready so wait until the repo is ready
-      _ <- waitFor(getAllGitRefs(ownerRepo, accessToken), 1.second, 10)
+      _ <- waitFor(getAllGitRefs(branchOrFork, accessToken), 1.seconds, 10)
+      _ <- waitFor(getCommits(branchOrFork, accessToken), 1.seconds, 10)
 
       _ <- createOrUpdateFile(branchOrFork, "LICENSE", licenseText, s"Add $licenseName", accessToken)
 
