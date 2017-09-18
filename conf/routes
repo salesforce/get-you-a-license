@@ -4,7 +4,7 @@
 
 GET     /                                  controllers.Main.index
 
-GET     /favicon.ico                       controllers.Assets.at(path="/public", file="lib/salesforce-ux__design-system/assets/icons/utility/like_60.png")
+GET     /favicon.ico                       controllers.Assets.at(path="/public", file="lib/salesforce-lightning-design-system/assets/icons/utility/like_60.png")
 
 GET     /_github_oauth_callback            controllers.Main.gitHubOauthCallback(code: String, state: String)
 

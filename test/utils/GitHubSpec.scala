@@ -36,6 +36,7 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatestplus.play._
 import play.api.Configuration
+import play.api.libs.concurrent.Futures
 import play.api.libs.ws.ahc.AhcWSClient
 import play.api.test.Helpers._
 import utils.GitHub._
@@ -56,7 +57,9 @@ class GitHubSpec extends PlaySpec with BeforeAndAfterAll {
 
   lazy val wsClient = AhcWSClient()
 
-  lazy val gitHub = new GitHub(config, wsClient)(ec)
+  lazy val futures = Futures.actorSystemToFutures(actorSystem)
+
+  lazy val gitHub = new GitHub(config, wsClient, futures)(ec)
 
   lazy val gitHubTestToken = sys.env("GITHUB_TEST_TOKEN")
   lazy val gitHubTestOrg = sys.env("GITHUB_TEST_ORG")
@@ -154,7 +157,7 @@ class GitHubSpec extends PlaySpec with BeforeAndAfterAll {
   "GitHub.createFile" should {
     "work" in {
       val path = Random.alphanumeric.take(8).mkString
-      val create = await(gitHub.createFile(gitHubTestOrgRepo, path, "test", "test", gitHubTestToken))
+      val create = await(gitHub.createOrUpdateFile(gitHubTestOrgRepo, path, "test", "test", gitHubTestToken))
       (create \ "commit" \ "sha").asOpt[String] must be (defined)
     }
   }
