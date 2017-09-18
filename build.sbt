@@ -7,10 +7,12 @@ name := "get-you-a-license"
 
 scalaVersion := "2.12.3"
 
+resolvers += Resolver.mavenLocal
+
 libraryDependencies ++= Seq(
   ws,
   "org.webjars" %% "webjars-play" % "2.6.2",
-  "org.webjars" % "salesforce-lightning-design-system" % "2.3.2",
+  "org.webjars" % "salesforce-lightning-design-system" % "2.4.1",
   "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.1" % Test
 )
 
