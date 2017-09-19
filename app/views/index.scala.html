@@ -28,21 +28,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *@
 
+@this(webJarsUtil: org.webjars.play.WebJarsUtil)
+
 @(authUrl: String, clientId: String, redirectUri: String, scopes: Set[String])
 
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <title>Get You a License</title>
+        @Html(webJarsUtil.css("salesforce-lightning-design-system.css"))
     </head>
     <body>
-        <form action="@authUrl" method="get">
+        <div class="slds-text-heading_large slds-m-top_xx-large slds-align_absolute-center">Get You a License!</div>
+
+        <form class="slds-m-top_xx-large slds-align_absolute-center" action="@authUrl" method="get">
             <input type="hidden" name="client_id" value="@clientId">
             <input type="hidden" name="redirect_uri" value="@redirectUri">
             <input type="hidden" name="scope" value="@scopes.mkString(",")">
-            <label>GitHub Org or User:</label>
-            <input name="state">
-            <input type="submit" name="Go!">
+            <div class="slds-form-element__control">
+                <input type="text" name="state" class="slds-input" placeholder="GitHub Org or User" required="" />
+            </div>
+            <input type="submit" value="Go!" class="slds-button slds-button_neutral">
         </form>
     </body>
 </html>

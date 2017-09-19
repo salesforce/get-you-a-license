@@ -28,48 +28,84 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *@
 
-@(org: String, repos: Seq[controllers.Repo], licenses: Map[String, String], accessToken: String)
+@this(webJarsUtil: org.webjars.play.WebJarsUtil)
+
+@(org: controllers.OrgOrUser, repos: Seq[controllers.Repo], licenses: Map[String, String], accessToken: String)
 
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <title>Get You a License</title>
-        @*
-        <link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/main.css")">
-        <link rel="shortcut icon" type="image/png" href="@routes.Assets.versioned("images/favicon.png")">
-        <script src="@routes.Assets.versioned("javascripts/hello.js")" type="text/javascript"></script>
-            *@
-
+        @Html(webJarsUtil.css("salesforce-lightning-design-system.css"))
         <script src="@routes.Assets.versioned("javascripts/index.js")" type="application/javascript"></script>
     </head>
     <body data-github-token="@accessToken">
-        <p>
-            Org:  <a href="https://github.com/@org">@org</a>
-        </p>
-
-        <div id="licenseInputs">
-            <span>Get You a License:</span>
-            <select id="license">
-                <option value="" label=" " disabled selected></option>
-                @for((licenseKey, licenseName) <- licenses) {
-                    <option value="@licenseKey">@licenseName</option>
-                }
-            </select>
+        <div class="slds-page-header">
+            <div class="slds-grid">
+                <div class="slds-col slds-has-flexi-truncate">
+                    <div class="slds-media slds-no-space slds-grow">
+                        <div class="slds-media__figure">
+                            <span class="slds-avatar">
+                                <img src="@org.avatarUrl">
+                            </span>
+                        </div>
+                        <div class="slds-media__body">
+                            <h1 class="slds-page-header__title slds-truncate slds-align-middle" title="@org.name"><a href="@org.htmlUrl">@org.name</a></h1>
+                            <p class="slds-text-body_small slds-line-height_reset">@org.description</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="licenseInputs" class="slds-col slds-no-flex slds-grid slds-align-top">
+                    <div class="slds-select_container">
+                        <select class="slds-select" id="license">
+                            <option value="" label="Get You a License" disabled selected></option>
+                            @for((licenseKey, licenseName) <- licenses) {
+                                <option value="@licenseKey">@licenseName</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <ul>
-            @for(repo <- repos) {
-                <li>
-                    <a href="https://github.com/@repo.fullName">@repo.name</a> - @repo.maybeLicense match {
-                        case Some(license) => {
-                            @license
-                        }
-                        case None => {
-                            None <button name="sendLicensePr" value="@repo.fullName" disabled>Send License PR</button>
-                        }
-                    }
-                </li>
-            }
-        </ul>
+        <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+            <thead>
+                <tr class="slds-text-title_caps">
+                    <th scope="col">
+                        <div class="slds-truncate" title="Repo">Repo</div>
+                    </th>
+                    <th scope="col">
+                        <div class="slds-truncate" title="License">License</div>
+                    </th>
+                    <th scope="col">
+                        <div class="slds-truncate" title="Action"></div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @for(repo <- repos) {
+                    <tr>
+                        <th scope="row" data-label="Repo">
+                            <div class="slds-truncate" title="@repo.fullName"><a href="https://github.com/@repo.fullName">@repo.name</a></div>
+                        </th>
+                        <td data-label="License">
+                            @repo.maybeLicense match {
+                                case Some(license) => {
+                                    <div class="slds-truncate" title="@license">@license</div>
+                                }
+                                case None => {
+                                    None
+                                }
+                            }
+                        </td>
+                        <td data-label="Action">
+                            @if(repo.maybeLicense.isEmpty) {
+                                <button name="sendLicensePr" value="@repo.fullName" disabled class="slds-button slds-button_brand">Send License PR</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </body>
 </html>

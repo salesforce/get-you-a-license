@@ -30,25 +30,22 @@
 
 package controllers
 
-import akka.util.ByteString
-import play.api.Configuration
-import play.api.http.HttpEntity
 import play.api.libs.json.{JsObject, Json, JsonValidationError, Reads, __}
 import play.api.libs.functional.syntax._
 import play.api.mvc._
 import utils.GitHub
-import utils.GitHub.{OwnerRepo, OwnerRepoBase, parseOwnerRepo}
+import utils.GitHub.OwnerRepo
 
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class Main(gitHub: GitHub, cc: ControllerComponents) (implicit ec: ExecutionContext) extends AbstractController(cc) {
+class Main(gitHub: GitHub, cc: ControllerComponents) (indexView: views.html.index, orgView: views.html.org) (implicit ec: ExecutionContext) extends AbstractController(cc) {
 
   private val ACCESS_TOKEN = "access_token"
   private val gitHubScopes = Set("public_repo")
 
   def index = Action { request =>
-    Ok(views.html.index(gitHubAuthUrl, gitHub.clientId, redirectUri(request), gitHubScopes))
+    Ok(indexView(gitHubAuthUrl, gitHub.clientId, redirectUri(request), gitHubScopes))
   }
 
   def gitHubOauthCallback(code: String, state: String) = Action.async {
@@ -75,9 +72,11 @@ class Main(gitHub: GitHub, cc: ControllerComponents) (implicit ec: ExecutionCont
           (licenseJson \ "key").as[String] -> (licenseJson \ "name").as[String]
         }.toMap
 
-        gitHub.orgOrUserRepos(org, accessToken).map(_.as[Seq[Repo]]).map { repos =>
-          val noForks = repos.filterNot(_.fork)
-          Ok(views.html.org(org, noForks, licenses, accessToken))
+        gitHub.orgOrUser(org, accessToken).map(_.as[OrgOrUser]).flatMap { orgOrUser =>
+          gitHub.orgOrUserRepos(org, accessToken).map(_.as[Seq[Repo]]).map { repos =>
+            val noForks = repos.filterNot(_.fork)
+            Ok(orgView(orgOrUser, noForks, licenses, accessToken))
+          }
         }
       }
     }
@@ -118,6 +117,20 @@ class Main(gitHub: GitHub, cc: ControllerComponents) (implicit ec: ExecutionCont
   private def redirectUri(implicit request: RequestHeader): String = {
     routes.Main.gitHubOauthCallback("", "").absoluteURL(request.secure).stripSuffix("?code=&state=")
   }
+
+}
+
+case class OrgOrUser(login: String, name: String, htmlUrl: String, avatarUrl: String, description: String)
+
+object OrgOrUser {
+
+  implicit val jsReads: Reads[OrgOrUser] = (
+    (__ \ "login").read[String] ~
+    (__ \ "name").read[String].filterNot(_.isEmpty).orElse((__ \ "login").read[String]) ~
+    (__ \ "html_url").read[String] ~
+    (__ \ "avatar_url").read[String] ~
+    (__ \ "bio").read[String].orElse((__ \ "description").read[String])
+  )(OrgOrUser.apply _)
 
 }
 

@@ -127,6 +127,12 @@ class GitHub(configuration: Configuration, ws: WSClient, futures: Futures)(impli
     ws("user", accessToken).get().flatMap(okT[JsObject])
   }
 
+  def orgOrUser(orgOrUser: String, accessToken: String): Future[JsObject] = {
+    ws(s"orgs/$orgOrUser", accessToken).get().flatMap(okT[JsObject]).recoverWith {
+      case _: Exception => ws(s"users/$orgOrUser", accessToken).get().flatMap(okT[JsObject])
+    }
+  }
+
   def orgOrUserRepos(orgOrUser: String, accessToken: String, pageSize: Int = 100): Future[JsArray] = {
     fetchPages(s"orgs/$orgOrUser/repos", accessToken, pageSize).recoverWith {
       case _: Exception => fetchPages(s"users/$orgOrUser/repos", accessToken, pageSize)

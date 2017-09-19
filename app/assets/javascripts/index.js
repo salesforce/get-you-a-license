@@ -25,7 +25,7 @@ function onload() {
 
       var li = event.target.parentElement;
       var spinner = document.createElement("img");
-      spinner.setAttribute("src", "/assets/lib/salesforce-lightning-design-system/assets/images/spinners/slds_spinner.gif");
+      spinner.setAttribute("src", "/_assets/lib/salesforce-lightning-design-system/assets/images/spinners/slds_spinner.gif");
       spinner.style["width"] = "16px";
       spinner.style["vertical-align"] = "top";
       li.appendChild(spinner);
@@ -46,7 +46,7 @@ function onload() {
           li.appendChild(prLink);
         }
       };
-      req.open("POST", "/license_pull_request");
+      req.open("POST", "/_license_pull_request");
       req.setRequestHeader("X-GITHUB-TOKEN", gitHubAccessToken());
       req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
       req.send(JSON.stringify(json));
@@ -78,8 +78,11 @@ function licenseChange(event) {
       params.forEach(function(param) {
         var input = document.createElement("input");
         input.id = param;
+        input.classList.add("slds-input");
+        input.style.width = "150px";
         input.setAttribute("name", "param");
         input.setAttribute("placeholder", param);
+        input.setAttribute("required", "");
         input.addEventListener("input", function() {
           var paramInputs = document.getElementsByName("param");
           var allParamsHaveValue = paramInputs.reduce(function(state, input) {
@@ -91,7 +94,7 @@ function licenseChange(event) {
       });
     }
   };
-  req.open("GET", "/license_params?key=" + license, true);
+  req.open("GET", "/_license_params?key=" + license, true);
   req.setRequestHeader("X-GITHUB-TOKEN", gitHubAccessToken());
   req.send();
 }
