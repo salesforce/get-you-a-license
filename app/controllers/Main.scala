@@ -129,7 +129,7 @@ object OrgOrUser {
     (__ \ "name").read[String].filterNot(_.isEmpty).orElse((__ \ "login").read[String]) ~
     (__ \ "html_url").read[String] ~
     (__ \ "avatar_url").read[String] ~
-    (__ \ "bio").read[String].orElse((__ \ "description").read[String])
+    (__ \ "bio").read[String].orElse((__ \ "description").read[String]).orElse(Reads.pure(""))
   )(OrgOrUser.apply _)
 
 }
