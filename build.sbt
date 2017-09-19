@@ -25,3 +25,5 @@ organizationName := "salesforce.com, inc."
 startYear := Some(2017)
 
 licenses += "BSD-3-Clause" -> new URL("https://opensource.org/licenses/BSD-3-Clause")
+
+licenseConfigurations := Set("runtime")
