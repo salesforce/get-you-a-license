@@ -1,0 +1,16 @@
+{
+  "name": "Get You a License",
+  "description": "Send Pull Requests to GitHub repos with licenses",
+  "keywords": ["open source"],
+  "env": {
+    "APPLICATION_SECRET": {
+      "generator": "secret"
+    },
+    "GITHUB_OAUTH_CLIENT_ID": {
+      "description": "GitHub OAuth Client ID"
+    },
+    "GITHUB_OAUTH_CLIENT_SECRET": {
+      "description": "GitHub OAuth Client Secret"
+    }
+  }
+}
