@@ -22,7 +22,7 @@ unmanagedSources.in(Compile, headerCreate) ++= sources.in(Compile, TwirlKeys.com
 
 organizationName := "salesforce.com, inc."
 
-startYear := Some(2017)
+startYear := Some(2018)
 
 licenses += "BSD-3-Clause" -> new URL("https://opensource.org/licenses/BSD-3-Clause")
 
