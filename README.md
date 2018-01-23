@@ -5,12 +5,13 @@ A little web app that makes it easy to add licenses to projects on GitHub. Check
 ![Get You a License](docs/get-you-a-license.gif)
 
 Run on Heroku:
-- Create a GitHub OAuth App
+- Create a GitHub OAuth App, setting the callback URL to something temporary
 - Deploy: [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+- Go back to the GitHub OAuth App settings and update the callback url to `https://YOUR_HEROKU_APP.herokuapp.com/_github_oauth_callback`
 
 Run Locally:
 
-- Create a GitHub OAuth App
+- Create a GitHub OAuth App, setting the callback URL to `http://localhost:9000/_github_oauth_callback`
 - Create a repo for testing
 - Set env vars:
 
