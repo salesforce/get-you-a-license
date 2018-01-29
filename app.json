@@ -3,7 +3,7 @@
   "description": "Send Pull Requests to GitHub repos with licenses",
   "keywords": ["open source"],
   "env": {
-    "APPLICATION_SECRET": {
+    "PLAY_SECRET": {
       "generator": "secret"
     },
     "GITHUB_OAUTH_CLIENT_ID": {
