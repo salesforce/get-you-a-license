@@ -109,7 +109,7 @@ class GitHub(configuration: Configuration, ws: WSClient, futures: Futures)(impli
       val pages = response.header("Link") match {
         case Some(r"""<(.*)$n>; rel="next", <(.*)$l>; rel="last"""") =>
           (urlToPage(n), urlToPage(l)) match {
-            case (Some(nextNum), Some(lastNum)) => Range(nextNum, lastNum)
+            case (Some(nextNum), Some(lastNum)) => Range(nextNum, lastNum).inclusive
             case _ => Range(0, 0)
           }
         case _ =>

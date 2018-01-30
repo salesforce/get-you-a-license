@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, salesforce.com, inc.
+ * Copyright (c) 2018, salesforce.com, inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -69,6 +69,10 @@ class GitHubSpec extends PlaySpec with BeforeAndAfterAll {
   lazy val gitHubTestOrgRepo = OwnerRepo(gitHubTestOrg, gitHubTestRepo)
 
   "GitHub.orgRepos" should {
+    "work" in {
+      val repos = await(gitHub.orgOrUserRepos("jamesward", gitHubTestToken))
+      repos.value.length must be > 300
+    }
     "get org repos with a page size of 1" in {
       val repos = await(gitHub.orgOrUserRepos(gitHubTestOrg, gitHubTestToken, 1))
       repos.value must not be 'empty
