@@ -5,12 +5,6 @@
   "env": {
     "PLAY_SECRET": {
       "generator": "secret"
-    },
-    "GITHUB_OAUTH_CLIENT_ID": {
-      "description": "GitHub OAuth Client ID"
-    },
-    "GITHUB_OAUTH_CLIENT_SECRET": {
-      "description": "GitHub OAuth Client Secret"
     }
   }
 }

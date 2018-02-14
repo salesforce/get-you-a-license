@@ -1,0 +1,78 @@
+@*
+ * Copyright (c) 2018, salesforce.com, inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *@
+
+@this(webJarsUtil: org.webjars.play.WebJarsUtil)
+
+@(maybeHerokuApp: Option[String], oauthCallbackUrl: String)
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Get You a License</title>
+        @webJarsUtil.locate("salesforce-lightning-design-system.css").css()
+    </head>
+    <body class="slds-m-around_large">
+
+        <div class="slds-text-heading_large">You need to setup GitHub OAuth</div>
+
+        <ol class="slds-list_ordered">
+            <li>
+                <a href="https://github.com/settings/applications/new" target="_blank">Create a new OAuth app on GitHub</a>
+            </li>
+
+            <li>
+                Set the <code>Authorization callback URL</code> to <code>@oauthCallbackUrl</code>
+            </li>
+
+            @maybeHerokuApp.fold {
+                <li>
+                    Create a new <code>conf/local.conf</code> file in your project containing the following with your newly created <em>Client ID</em> and <em>Client Secret</em> values:
+                    <pre><code># DO NOT SHARE THIS FILE OR PUT IT INTO YOUR SCM
+github.oauth.client-id=YOUR_CLIENT_ID
+github.oauth.client-secret=YOUR_CLIENT_SECRET</code></pre>
+                </li>
+            } { herokuApp =>
+                <li>
+                    Set the <em>Client ID</em> and <em>Client Secret</em> values in your Heroku app's config:
+                    <ol>
+                        <li><a href="https://dashboard.heroku.com/apps/@herokuApp/settings" target="_blank">Open your app's settings</a></li>
+                        <li>Click <em>Reveal Config Vars</em></li>
+                        <li>Add a new config var named <code>GITHUB_OAUTH_CLIENT_ID</code> with your Client ID</li>
+                        <li>Add a new config var named <code>GITHUB_OAUTH_CLIENT_SECRET</code> with your Client Secret</li>
+                    </ol>
+                </li>
+            }
+            <li>
+                Refresh this page
+            </li>
+        </ol>
+
+    </body>
+</html>
