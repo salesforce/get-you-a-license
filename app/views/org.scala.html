@@ -36,7 +36,7 @@
 <html lang="en">
     <head>
         <title>Get You a License</title>
-        @Html(webJarsUtil.css("salesforce-lightning-design-system.css"))
+        @webJarsUtil.locate("salesforce-lightning-design-system.css").css()
         <script src="@routes.Assets.versioned("javascripts/index.js")" type="application/javascript"></script>
     </head>
     <body data-github-token="@accessToken">
