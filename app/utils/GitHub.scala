@@ -52,8 +52,8 @@ import scala.concurrent.duration.FiniteDuration
 
 class GitHub(configuration: Configuration, ws: WSClient, futures: Futures)(implicit ec: ExecutionContext) {
 
-  lazy val clientId: String = configuration.get[String]("github.oauth.client-id")
-  lazy val clientSecret: String = configuration.get[String]("github.oauth.client-secret")
+  lazy val maybeClientId: Option[String] = configuration.getOptional[String]("github.oauth.client-id")
+  lazy val maybeClientSecret: Option[String] = configuration.getOptional[String]("github.oauth.client-secret")
 
   def ws(path: String, accessToken: String): WSRequest = {
     ws
@@ -65,26 +65,31 @@ class GitHub(configuration: Configuration, ws: WSClient, futures: Futures)(impli
   }
 
   def accessToken(code: String): Future[String] = {
-    val queryStringParameters = Seq(
-      "client_id" -> clientId,
-      "client_secret" -> clientSecret,
-      "code" -> code
-    )
+    (maybeClientId, maybeClientSecret) match {
+      case (Some(clientId), Some(clientSecret)) =>
+        val queryStringParameters = Seq(
+          "client_id" -> clientId,
+          "client_secret" -> clientSecret,
+          "code" -> code
+        )
 
-    val wsFuture = ws
-      .url("https://github.com/login/oauth/access_token")
-      .withQueryStringParameters(queryStringParameters:_*)
-      .withHttpHeaders(HeaderNames.ACCEPT -> MimeTypes.JSON)
-      .withMethod(HttpVerbs.POST)
-      .execute()
+        val wsFuture = ws
+          .url("https://github.com/login/oauth/access_token")
+          .withQueryStringParameters(queryStringParameters:_*)
+          .withHttpHeaders(HeaderNames.ACCEPT -> MimeTypes.JSON)
+          .withMethod(HttpVerbs.POST)
+          .execute()
 
-    wsFuture.flatMap { response =>
-      (response.json \ "access_token").asOpt[String].fold {
-        val maybeError = (response.json \ "error_description").asOpt[String]
-        Future.failed[String](new Exception(maybeError.getOrElse(response.body)))
-      } {
-        Future.successful
-      }
+        wsFuture.flatMap { response =>
+          (response.json \ "access_token").asOpt[String].fold {
+            val maybeError = (response.json \ "error_description").asOpt[String]
+            Future.failed[String](new Exception(maybeError.getOrElse(response.body)))
+          } {
+            Future.successful
+          }
+        }
+      case _ =>
+        Future.failed(new Exception("OAuth not configured"))
     }
   }
 

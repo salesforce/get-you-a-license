@@ -39,13 +39,31 @@ import utils.GitHub.OwnerRepo
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class Main(gitHub: GitHub, cc: ControllerComponents) (indexView: views.html.index, orgView: views.html.org) (implicit ec: ExecutionContext) extends AbstractController(cc) {
+class Main(gitHub: GitHub, cc: ControllerComponents) (indexView: views.html.index, orgView: views.html.org, setupView: views.html.setup) (implicit ec: ExecutionContext) extends AbstractController(cc) {
 
   private val ACCESS_TOKEN = "access_token"
   private val gitHubScopes = Set("public_repo")
 
   def index = Action { request =>
-    Ok(indexView(gitHubAuthUrl, gitHub.clientId, redirectUri(request), gitHubScopes))
+    gitHub.maybeClientId.fold {
+      Redirect(routes.Main.setup())
+    } { clientId =>
+      Ok(indexView(gitHubAuthUrl, clientId, redirectUri(request), gitHubScopes))
+    }
+  }
+
+  def setup = Action { request =>
+    gitHub.maybeClientId.fold {
+      val maybeHerokuApp = if (request.host.endsWith("herokuapp.com")) {
+        Some(request.host.stripSuffix(".herokuapp.com"))
+      }
+      else {
+        None
+      }
+      Ok(setupView(maybeHerokuApp, redirectUri(request)))
+    } { _ =>
+      Redirect(routes.Main.index())
+    }
   }
 
   def gitHubOauthCallback(code: String, state: String) = Action.async {
@@ -58,14 +76,18 @@ class Main(gitHub: GitHub, cc: ControllerComponents) (indexView: views.html.inde
 
   def gitHubOrg(org: String) = Action.async { request =>
     request.flash.get(ACCESS_TOKEN).fold {
-      val params = Map(
-        "client_id" -> gitHub.clientId,
-        "redirect_uri" -> redirectUri(request),
-        "scope" -> gitHubScopes.mkString(","),
-        "state" -> org
-      ).mapValues(Seq(_))
+      gitHub.maybeClientId.fold {
+        Future.successful(Redirect(routes.Main.setup()))
+      } { clientId =>
+        val params = Map(
+          "client_id" -> clientId,
+          "redirect_uri" -> redirectUri(request),
+          "scope" -> gitHubScopes.mkString(","),
+          "state" -> org
+        ).mapValues(Seq(_))
 
-      Future.successful(Redirect(gitHubAuthUrl, params))
+        Future.successful(Redirect(gitHubAuthUrl, params))
+      }
     } { accessToken =>
       gitHub.licenses(accessToken).flatMap { licensesJson =>
         val licenses = licensesJson.value.map { licenseJson =>

@@ -59,10 +59,11 @@ class MyComponents(context: Context) extends BuiltInComponentsFromContext(contex
   lazy val webJarsUtil = new WebJarsUtil(context.initialConfiguration, context.environment)
 
   lazy val indexView = new views.html.index(webJarsUtil)
+  lazy val setupView = new views.html.setup(webJarsUtil)
   lazy val orgView = new views.html.org(webJarsUtil)
 
   lazy val gitHub = new GitHub(context.initialConfiguration, wsClient, futures)
-  lazy val main = new Main(gitHub, controllerComponents)(indexView, orgView)
+  lazy val main = new Main(gitHub, controllerComponents)(indexView, orgView, setupView)
 
   lazy val requireJs = new RequireJS(webJarsUtil)
   lazy val webJarAssets = new WebJarAssets(httpErrorHandler, assetsMetadata)
