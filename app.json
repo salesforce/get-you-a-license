@@ -2,6 +2,7 @@
   "name": "Get You a License",
   "description": "Send Pull Requests to GitHub repos with licenses",
   "keywords": ["open source"],
+  "logo": "https://raw.githubusercontent.com/salesforce/get-you-a-license/master/docs/get-you-a-license.jpg",
   "env": {
     "PLAY_SECRET": {
       "generator": "secret"
