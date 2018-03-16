@@ -2,7 +2,7 @@
 
 A little web app that makes it easy to add licenses to projects on GitHub. Check it out:
 
-![Get You a License](docs/get-you-a-license.gif)
+![Get You a License](https://github.com/salesforce/get-you-a-license/blob/master/docs/get-you-a-license.gif?raw=true)
 
 Run on Heroku:
 
