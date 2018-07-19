@@ -120,6 +120,9 @@ class Main(gitHub: GitHub, cc: ControllerComponents) (indexView: views.html.inde
         gitHub.createLicensePullRequest(OwnerRepo(orgRepo), licenseKey, templateParams, accessToken).map { pullRequest =>
           Ok(pullRequest)
         }
+      } recover {
+        case e: GitHub.IncorrectResponseStatus =>
+          InternalServerError(e.message)
       }
     }
   }

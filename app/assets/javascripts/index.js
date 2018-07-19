@@ -45,6 +45,12 @@ function onload() {
 
           li.appendChild(prLink);
         }
+        else if (this.readyState === 4) {
+          var error = document.createElement("span");
+          error.innerText = this.responseText;
+          spinner.remove();
+          li.appendChild(error);
+        }
       };
       req.open("POST", "/_license_pull_request");
       req.setRequestHeader("X-GITHUB-TOKEN", gitHubAccessToken());
