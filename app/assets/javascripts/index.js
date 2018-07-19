@@ -25,7 +25,7 @@ function onload() {
 
       var li = event.target.parentElement;
       var spinner = document.createElement("img");
-      spinner.setAttribute("src", "/_assets/lib/salesforce-lightning-design-system/assets/images/spinners/slds_spinner.gif");
+      spinner.setAttribute("src", "/_assets/lib/salesforce-lightning-design-system/images/spinners/slds_spinner.gif");
       spinner.style["width"] = "16px";
       spinner.style["vertical-align"] = "top";
       li.appendChild(spinner);
