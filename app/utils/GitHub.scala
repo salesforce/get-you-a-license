@@ -159,8 +159,10 @@ class GitHub(configuration: Configuration, ws: WSClient, futures: Futures)(impli
   def licenseParams(key: String, accessToken: String): Future[Set[String]] = {
     license(key, accessToken).map { licenseInfo =>
       val body = (licenseInfo \ "body").as[String]
+      val end = body.indexOf("END OF TERMS AND CONDITIONS")
+      val trimmed = if (end > 0) body.substring(0, end) else body
       val paramMatcher = "(?<=\\[).+?(?=\\])".r
-      paramMatcher.findAllIn(body).toSet
+      paramMatcher.findAllIn(trimmed).toSet
     }
   }
 

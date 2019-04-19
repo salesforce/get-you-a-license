@@ -120,6 +120,10 @@ class GitHubSpec extends PlaySpec with BeforeAndAfterAll {
       val params = await(gitHub.licenseParams("mit", gitHubTestToken))
       params must equal (Set("year", "fullname"))
     }
+    "work with apache-2.0" in {
+      val params = await(gitHub.licenseParams("apache-2.0", gitHubTestToken))
+      params must equal (Set())
+    }
   }
 
   "GitHub.repoBranches" should {
